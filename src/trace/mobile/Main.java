@@ -8,6 +8,11 @@ public class Main extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        new LocationService(this);
+        
         setContentView(R.layout.main);
     }
+    
+    
 }
