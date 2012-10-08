@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="hello">Hello World, Main!</string>
+    <string name="hello">Application started, no location found yet.</string>
     <string name="app_name">Trace Mobile</string>
-    <string name="traceHost">213.115.193.23</string>
+    <string name="traceHost">dev2.kartena.se</string>
     <string name="tracePort">7777</string>
+    <string name="appRoot">ppf</string>
 </resources>

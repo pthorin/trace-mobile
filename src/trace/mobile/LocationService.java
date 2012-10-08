@@ -11,6 +11,12 @@ import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.logging.StreamHandler;
 
+import org.apache.http.HttpHost;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+
 import android.content.Context;
 import android.location.Location;
 import android.location.LocationListener;
@@ -19,6 +25,8 @@ import android.os.Bundle;
 import android.telephony.TelephonyManager;
 import android.text.format.DateFormat;
 import android.text.format.Formatter;
+import android.widget.TextView;
+import android.net.http.*;
 
 /**
  * 
@@ -49,22 +57,46 @@ public class LocationService {
 
 			public void onLocationChanged(Location location) {
 				// Called when a new location is found by the network location provider.
-			    try {
+			    TextView textView = (TextView)LocationService.activity.findViewById(R.id.textview);
+				try {
 					makeUseOfNewLocation(location);
 				} catch (NumberFormatException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
+					textView.setText(e.getMessage());
 				} catch (UnknownHostException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
+					textView.setText(e.getMessage());
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
+					String host = LocationService.activity.getString(R.string.traceHost);
+					String appRoot = LocationService.activity.getString(R.string.appRoot);
+					String s = "http://"+host+"/"+appRoot+"/Login.aspx";
+					
 					e.printStackTrace();
+					textView.setText(e.getMessage());
+					
+					DefaultHttpClient dhc = new DefaultHttpClient();
+					try {
+						HttpResponse response = dhc.execute(new HttpHost(host), new HttpGet(s));
+						e.printStackTrace();
+						if (response.getStatusLine().getStatusCode() == 200) {
+							textView.setText("Started up PPF.");
+							onLocationChanged(location);
+						} else {
+							textView.setText("PPF is not running, failed to start.");
+						}
+					} catch (ClientProtocolException e1) {
+						e1.printStackTrace();
+						textView.setText("Failed to start PPF. " + e1.getMessage());
+					} catch (IOException e1) {
+						e1.printStackTrace();
+						textView.setText("Failed to start PPF. " + e1.getMessage());
+					}			
 				}
 				
 			}
 
 			private void makeUseOfNewLocation(Location location) throws NumberFormatException, UnknownHostException, IOException {
+				((TextView)LocationService.activity.findViewById(R.id.textview)).setText("Updating location...");
 				String dstName = LocationService.activity.getString(R.string.traceHost);
 				int dstPort = Integer.parseInt(LocationService.activity.getString(R.string.tracePort));
 				Socket socket = new Socket(dstName, dstPort);
@@ -73,9 +105,9 @@ public class LocationService {
 				
 				TelephonyManager telMgr = (TelephonyManager) LocationService.activity.getSystemService(Context.TELEPHONY_SERVICE);
 				
-				// {IMEI};{create time};109;01;80;00;0;0;0;0;13410;0;2;1;{position Unix time};{latitude};{longitude};0;0;198;4;000000000000;0;\\n
+				// {IMEI};{create time};109;01;80;00;0;0;0;0;13410;0;2;1;{position Unix time};{latitude};{longitude};0;0;{bearing/direction};4;000000000000;0;\\n
 				
-				CharSequence createTime = DateFormat.format("yyyy-MM-ddThh:mm:ssZ", location.getTime());
+				CharSequence createTime = DateFormat.format("yyyy-MM-ddTkk:mm:ssZ", location.getTime()); // TODO set to UTC (currently local time)... 
 				StringBuilder a1maxMsg =  new StringBuilder();
 				a1maxMsg.append(telMgr.getDeviceId() + ";");
 				a1maxMsg.append(createTime + ";");
@@ -83,9 +115,18 @@ public class LocationService {
 				a1maxMsg.append((location.getTime() / 1000) + ";");
 				a1maxMsg.append(((long)(location.getLatitude() * 1000000)) + ";");
 				a1maxMsg.append(((long)(location.getLongitude() * 1000000))+ ";");
-				a1maxMsg.append("0;0;198;4;000000000000;0;");
-					
-				out.println(a1maxMsg.toString());
+				//a1maxMsg.append("0;0;");
+				a1maxMsg.append((int)location.getSpeed() + ";" + (int)location.getAltitude() + ";");
+				a1maxMsg.append((int)location.getBearing() + ";");
+				a1maxMsg.append("4;000000000000;0;");
+				((TextView)LocationService.activity.findViewById(R.id.textview)).setText("Sending location to server...");
+				try {	
+					out.println(a1maxMsg.toString());
+				} catch (Exception e) {
+					((TextView)LocationService.activity.findViewById(R.id.textview)).setText(e.getMessage());
+				}
+				((TextView)LocationService.activity.findViewById(R.id.textview)).setText(a1maxMsg.toString());
+				
 				out.flush();
 				out.close();
 				socket.close();				
@@ -98,7 +139,7 @@ public class LocationService {
         };
         
         // Register the listener with the Location Manager to receive location updates
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 60000, 1, locationListener);
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 60000, 1, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 60000, 0, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 15000, 0, locationListener);
 	}
 }
